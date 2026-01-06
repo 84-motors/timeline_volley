@@ -133,12 +133,24 @@ def detail_explanation_html():
         blocks.append(h)
     return "".join(blocks)
 
-def assemble_export_html(kpi_vals, fig_player, fig_skill, fig_detail, fig_timeline, df_table_html, help_html):
+
+def assemble_export_html(
+    kpi_vals,
+    fig_player_points,
+    fig_player_points_stacked,
+    fig_player_losses,
+    fig_player_losses_stacked,
+    fig_skill,
+    fig_detail,
+    fig_timeline,
+    df_table_html,
+    help_html
+):
     head = """
 <!DOCTYPE html><html lang='ja'><head>
 <meta charset='utf-8'>
 <title>データバレー レポート</title>
-<script src='https://cdn.plot.ly/plotly-2.30.0.min.js'></script>
+https://cdn.plotly.com/plotly-2.30.0.min.js</script>
 <style>
   body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans JP', sans-serif; margin: 24px; }
   h1 { margin-top: 0; }
@@ -156,7 +168,10 @@ def assemble_export_html(kpi_vals, fig_player, fig_skill, fig_detail, fig_timeli
 """
     body = (
         kpi_to_html(kpi_vals) +
-        fig_to_html(fig_player, "選手別 得点数（U）") +
+        fig_to_html(fig_player_points, "選手別 得点数（U）") +
+        fig_to_html(fig_player_points_stacked, "選手別 × スキル別 得点数（U）積み上げ") +
+        fig_to_html(fig_player_losses, "選手別 失点数（O）") +
+        fig_to_html(fig_player_losses_stacked, "選手別 × スキル別 失点数（O）積み上げ") +
         fig_to_html(fig_skill,  "スキル別 得点数（U）") +
         fig_to_html(fig_detail, "ディテール（質）別 得点数（U）") +
         fig_to_html(fig_timeline, "タイムライン（U=+1, I=0, O=-1）") +
@@ -165,6 +180,7 @@ def assemble_export_html(kpi_vals, fig_player, fig_skill, fig_detail, fig_timeli
     )
     tail = "</body></html>"
     return head + body + tail
+
 
 st.title("🏐 データバレー（HTML出力付きMVP）")
 
@@ -211,34 +227,72 @@ for col, (k,v) in zip([col1,col2,col3,col4], vals.items()):
 
 st.divider()
 
-# ===== 可視化用の図（レポート出力でも再利用）=====
-# 1) 選手別
-gp = qdf.groupby("player")["point_to"].apply(lambda s: (s=="U").sum()).reset_index(name="points_U")
-fig_player = px.bar(gp, x="player", y="points_U", title="選手別 得点数（U）")
 
-# 2) スキル別（ラベル化）
+# ===== 可視化用の図（レポート出力でも再利用）=====
+
+# ラベル化用にコピー
 qs = qdf.copy()
 qs["skill_label"] = qs["skill"].map(SKILL_LABELS)
-gs = qs.groupby("skill_label")["point_to"].apply(lambda s: (s=="U").sum()).reset_index(name="points_U")
-fig_skill = px.bar(gs, x="skill_label", y="points_U", title="スキル別 得点数（U）")
 
-# 3) ディテール別
-gd = qdf.groupby("detail")["point_to"].apply(lambda s: (s=="U").sum()).reset_index(name="points_U")
-fig_detail = px.bar(gd, x="detail", y="points_U", title="ディテール（質）別 得点数（U）")
-
-# 4) タイムライン（ステップ表示＋I区間ハイライト）
-tl = qdf.copy().sort_values("rally_no")
-tl["y"] = tl["point_to"].map({"U":1, "I":0, "O":-1})
-fig_timeline = px.line(
-    tl, x="rally_no", y="y", markers=True,
-    line_shape="hv",
-    title="タイムライン（U=+1, I=0, O=-1）"
+# --- 1) 選手別・得点（Uカウント） ---
+gp_points = qdf.groupby("player")["point_to"].apply(lambda s: (s == "U").sum()).reset_index(name="points_U")
+fig_player_points = px.bar(
+    gp_points, x="player", y="points_U",
+    title="選手別 得点数（U）",
+    labels={"points_U": "得点数（U）", "player": "選手"}
 )
-fig_timeline.update_yaxes(tickvals=[-1,0,1], ticktext=["失点(O)","継続(I)","得点(U)"], range=[-1.1,1.1])
+
+# --- 2) 選手別 × スキル別・得点の積み上げ棒グラフ（Uカウント） ---
+udf = qs[qs["point_to"] == "U"].copy()
+gp_points_stacked = udf.groupby(["player", "skill_label"]).size().reset_index(name="count")
+fig_player_points_stacked = px.bar(
+    gp_points_stacked, x="player", y="count",
+    color="skill_label", barmode="stack",
+    title="選手別 × スキル別 得点数（U）積み上げ",
+    labels={"count": "得点数（U）", "player": "選手", "skill_label": "スキル"}
+)
+fig_player_points_stacked.update_layout(legend_title_text="スキル")
+
+# --- 3) 選手別・失点（Oカウント） ---
+gp_losses = qdf.groupby("player")["point_to"].apply(lambda s: (s == "O").sum()).reset_index(name="points_O")
+fig_player_losses = px.bar(
+    gp_losses, x="player", y="points_O",
+    title="選手別 失点数（O）",
+    labels={"points_O": "失点数（O）", "player": "選手"}
+)
+
+# --- 4) 選手別 × スキル別・失点の積み上げ棒グラフ（Oカウント） ---
+odf = qs[qs["point_to"] == "O"].copy()
+gp_losses_stacked = odf.groupby(["player", "skill_label"]).size().reset_index(name="count")
+fig_player_losses_stacked = px.bar(
+    gp_losses_stacked, x="player", y="count",
+    color="skill_label", barmode="stack",
+    title="選手別 × スキル別 失点数（O）積み上げ",
+    labels={"count": "失点数（O）", "player": "選手", "skill_label": "スキル"}
+)
+fig_player_losses_stacked.update_layout(legend_title_text="スキル")
+
+# --- 既存：スキル別／ディテール別 ---
+gs = qs.groupby("skill_label")["point_to"].apply(lambda s: (s == "U").sum()).reset_index(name="points_U")
+fig_skill = px.bar(gs, x="skill_label", y="points_U", title="スキル別 得点数（U）",
+                   labels={"points_U": "得点数（U）", "skill_label": "スキル"})
+
+gd = qdf.groupby("detail")["point_to"].apply(lambda s: (s == "U").sum()).reset_index(name="points_U")
+fig_detail = px.bar(gd, x="detail", y="points_U", title="ディテール（質）別 得点数（U）",
+                    labels={"points_U": "得点数（U）", "detail": "質"})
+
+# --- 既存：タイムライン（ステップ表示＋I区間ハイライト） ---
+tl = qdf.copy().sort_values("rally_no")
+tl["y"] = tl["point_to"].map({"U": 1, "I": 0, "O": -1})
+fig_timeline = px.line(
+    tl, x="rally_no", y="y", markers=True, line_shape="hv",
+    title="タイムライン（U=+1, I=0, O=-1）",
+    labels={"rally_no": "ラリー番号", "y": "状態"}
+)
+fig_timeline.update_yaxes(tickvals=[-1, 0, 1], ticktext=["失点(O)", "継続(I)", "得点(U)"], range=[-1.1, 1.1])
+
 # I連続区間の検出→ハイライト
-runs = []
-current_start = None
-prev_rally = None
+runs, current_start, prev_rally = [], None, None
 for _, row in tl.iterrows():
     r, p = row["rally_no"], row["point_to"]
     if p == "I":
@@ -255,18 +309,22 @@ for (start_r, end_r) in runs:
     fig_timeline.add_vrect(x0=start_r, x1=end_r, fillcolor="LightGray", opacity=0.15, line_width=0,
                            annotation_text="I（継続）", annotation_position="top left")
 
+
 # ===== 画面表示（タブ）=====
-tab_player, tab_skill, tab_detail, tab_timeline, tab_help = st.tabs(
-    ["選手別", "スキル別", "ディテール別", "タイムライン", "説明（detailの定義）"]
+tab_timeline, tab_player, tab_skill, tab_detail, tab_help = st.tabs(
+    ["タイムライン", "選手別", "スキル別", "ディテール別", "説明（detailの定義）"]
 )
+with tab_timeline:
+    st.plotly_chart(fig_timeline, use_container_width=True)
 with tab_player:
-    st.plotly_chart(fig_player, use_container_width=True)
+    #st.plotly_chart(fig_player_points, use_container_width=True)
+    st.plotly_chart(fig_player_points_stacked, use_container_width=True)
+    #st.plotly_chart(fig_player_losses, use_container_width=True)
+    st.plotly_chart(fig_player_losses_stacked, use_container_width=True)
 with tab_skill:
     st.plotly_chart(fig_skill, use_container_width=True)
 with tab_detail:
     st.plotly_chart(fig_detail, use_container_width=True)
-with tab_timeline:
-    st.plotly_chart(fig_timeline, use_container_width=True)
 with tab_help:
     st.subheader("detail の定義（質）")
     st.write("各スキルにおける A/B/C/M/P の意味は以下の通りです。チーム内規約に合わせて調整可能です。")
@@ -294,13 +352,17 @@ help_html = "<section><h2>説明（detailの定義）</h2>" + detail_explanation
 
 export_html = assemble_export_html(
     kpi_vals=vals,
-    fig_player=fig_player,
+    fig_player_points=fig_player_points,
+    fig_player_points_stacked=fig_player_points_stacked,
+    fig_player_losses=fig_player_losses,
+    fig_player_losses_stacked=fig_player_losses_stacked,
     fig_skill=fig_skill,
     fig_detail=fig_detail,
     fig_timeline=fig_timeline,
     df_table_html=df_table_html,
     help_html=help_html
 )
+
 
 st.divider()
 st.download_button(
