@@ -7,7 +7,7 @@ import datetime
 import re
 import numpy as np
 
-st.set_page_config(page_title="データバレー（HTML出力付きMVP）", layout="wide")
+st.set_page_config(page_title="データバレーZ", layout="wide")
 
 # --- サイドバーをブルーに変更するCSS ---
 st.markdown("""
@@ -658,3 +658,4 @@ st.download_button(
     file_name=f"{file_stub}.html",
     mime="text/html"
 )
+
