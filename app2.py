@@ -252,6 +252,7 @@ def assemble_export_html(
         fig_to_html(fig_timeline, "タイムライン") +
         fig_to_html(fig_player_points_stacked, "選手別 × スキル別 得点数積み上げ") +
         fig_to_html(fig_player_losses_stacked, "選手別 × スキル別 失点数積み上げ") +
+        fig_to_html(fig_sunburst, "選手別ボール関与構造") +
         fig_to_html(fig_skill,  "スキル別 得点数") +
         fig_to_html(fig_skill_detail, "スキル別 × ディテール（質）件数") +
         help_html +
