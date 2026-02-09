@@ -453,8 +453,16 @@ fig_player_losses_stacked.update_layout(legend_title_text="スキル")
 
 # --- 既存：スキル別／ディテール別 ---
 gs = qs.groupby("skill_label")["point_to"].apply(lambda s: (s == "U").sum()).reset_index(name="points_U")
-fig_skill = px.bar(gs, x="skill_label", y="points_U", title="スキル別 得点数（U）",
-                   labels={"points_U": "得点数（U）", "skill_label": "スキル"})
+fig_skill = px.bar(
+    gs,
+    x="skill_label",
+    y="points_U",
+    title="スキル別 得点数（U）",
+    labels={"points_U": "得点数（U）", "skill_label": "スキル"},
+    color_discrete_map= SKILL_COLORS,
+    category_orders={"skill_labels": SKILL_ORDER}
+)
+fig_skill.update_layout(showlegend=False)
 
 # --- NEW: スキル別 × ディテール（質）の積み上げ棒グラフ ---
 # qdf はフィルタ適用後のデータ
