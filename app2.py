@@ -509,7 +509,7 @@ fig_sunburst = px.sunburst(
     values="count",
     title="選手別ボール関与構造（選手名 → スキル → ディテール）",
     color="skill_label",
-    color_discrete_map=DETAIL_COLORS
+    color_discrete_map=SKILL_COLORS
 )
 fig_sunburst.update_traces(
     hovertemplate="層: %{label}<br>件数: %{value}<br>割合: %{percentRoot:.1%}"
