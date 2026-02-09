@@ -508,7 +508,7 @@ fig_sunburst = px.sunburst(
     path=["player_display", "skill_label", "detail"],   # ← 内周が名前に
     values="count",
     title="選手別ボール関与構造（選手名 → スキル → ディテール）",
-    color="detail",
+    color="skill_label",
     color_discrete_map=DETAIL_COLORS
 )
 fig_sunburst.update_traces(
