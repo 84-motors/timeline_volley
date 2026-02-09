@@ -457,6 +457,7 @@ fig_skill = px.bar(
     gs,
     x="skill_label",
     y="points_U",
+    color="skill_label",
     title="スキル別 得点数（U）",
     labels={"points_U": "得点数（U）", "skill_label": "スキル"},
     color_discrete_map= SKILL_COLORS,
